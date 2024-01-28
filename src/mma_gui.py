@@ -6,7 +6,7 @@ from datetime import datetime
 import numpy as np
 import turtle
 
-from pymma.mma import MmaDesign
+from src.mma import Mma
 
 
 class MmaGui:
@@ -30,7 +30,7 @@ class MmaGui:
         f_x_s = float(self.entries[7].get())
         f_y_s = float(self.entries[8].get())
         gamma = float(self.entries[9].get())
-        mma = MmaDesign(C, g_0, B_b, r_r, f_i, f_x_0, f_y_0, f_x_s, f_y_s, gamma)
+        mma = Mma(C, g_0, B_b, r_r, f_i, f_x_0, f_y_0, f_x_s, f_y_s, gamma)
         mma.log_level = 'INFO'
         mma.design(log_results=True)
         mma.draw(save_result=True, turtle=self.t, screen=self.screen)
@@ -103,12 +103,3 @@ class MmaGui:
 
         # Inicialização da interface
         window.mainloop()
-
-
-def main():
-    mma_gui = MmaGui()
-    mma_gui.build_gui()
-
-
-if __name__ == '__main__':
-    main()

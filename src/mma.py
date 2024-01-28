@@ -4,7 +4,7 @@ import numpy as np
 import turtle
 from datetime import datetime
 
-from pymma.exceptions.design_exception import DrawWithoutDesignException
+from src.exceptions.design_exception import DrawWithoutDesignException
 
 
 def process_kwargs(kwargs, variable_name, default_value):
@@ -14,7 +14,7 @@ def process_kwargs(kwargs, variable_name, default_value):
         return default_value
 
 
-class MmaDesign:
+class Mma:
 
     def __init__(self, C, g_0, B_b, r_r, f_i, f_x_0, f_y_0, f_x_s, f_y_s, gamma):
         # Parâmetros de projeto definidos pelo usuário
@@ -53,7 +53,7 @@ class MmaDesign:
         # Variáveis de controle
         self.design_done = False  # Valida se o design já foi executado
         self.log_return = None  # Guarda os logs escritos durante o design
-        self.log_results = None # Indica se os logs devem ser apresentados ou não
+        self.log_results = None  # Indica se os logs devem ser apresentados ou não
         self.log_level = 'DEBUG'  # Nível de detalhamento dos logs
 
     def log_data(self, log_level, msg):
@@ -312,25 +312,9 @@ class MmaDesign:
         # Armazenamento dos resultados
         if save_result:
             date_str = datetime.fromtimestamp(time.time()).strftime("%d-%m-%Y %H:%M:%S")
-            t.getscreen().getcanvas().postscript(file='results/mma_draw' + date_str + '.eps')
+            file_name = f'files/output/mma_draw_{date_str}.eps'
+            t.getscreen().getcanvas().postscript(file=file_name)
 
         print('Desenho concluído.')
         if hold_draw:
             t.done()
-
-
-def main():
-    # Execução do design
-    r_r = 40e-3
-    mma = MmaDesign(np.matrix('1, 0, 1; 0, -1, -1; 0, 1, 1; 1, 0, -1; -1, 0, 1; 0, 1, -1; 0, -1, 1;-1 0 -1'),
-                    1e-3, 0.6, r_r, 0.473, 0, 500, 75,
-                    75, 1)
-
-    mma.design(log_results=True)
-
-    # Desenho do MMA
-    mma.draw(save_result=False, hold_draw=True)
-
-
-if __name__ == '__main__':
-    main()

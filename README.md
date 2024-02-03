@@ -12,7 +12,7 @@ Para que esse projeto seja devidamente executado, recomenda-se a instalação da
 pip install -r requirements.txt
 ```
 
-As equações empregadas no desenvolvimento do desse projeto podem ser verificadas em *E. H. Maslen, “Magnetic Bearing: Class Notes”, University of Virginia, Charlottesville, 2000*.
+As equações que basearam o desenvolvimento desse projeto podem ser verificadas em *E. H. Maslen, “Magnetic Bearing: Class Notes”, University of Virginia, Charlottesville, 2000*.
 
 ## Pacotes empregados
 Esse projeto é baseado no Python 3.10.0 e emprega os pacotes listados no arquivo `requirements.txt`.

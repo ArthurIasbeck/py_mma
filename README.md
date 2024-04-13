@@ -12,6 +12,12 @@ Para que esse projeto seja devidamente executado, recomenda-se a instalação da
 pip install -r requirements.txt
 ```
 
+Em seguida, é necessário instalar o pacote TK Inter, empregado na construção dos desenhos do MMA. Para tanto, utilize o comando abaixo quando tratando-se de sistemas baseados no Ubuntu. 
+
+```bash
+sudo apt-get install python3-tk
+```
+
 As equações que basearam o desenvolvimento desse projeto podem ser verificadas em *E. H. Maslen, “Magnetic Bearing: Class Notes”, University of Virginia, Charlottesville, 2000*.
 
 ## Pacotes empregados

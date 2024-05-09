@@ -51,10 +51,14 @@ def button_design(state):
     notify(state, 'info', f'Iniciando processo de dimensionamento...')
 
     try:
-        jpg_files = glob.glob(os.path.join('output/*.jpg'))
+        if os.path.exists("output"):
+            jpg_files = glob.glob(os.path.join('output/*.jpg'))
 
-        for file_path in jpg_files:
-            os.remove(file_path)
+            for file_path in jpg_files:
+                os.remove(file_path)
+
+        else:
+            os.makedirs("output")
 
         input_C = state.C
         input_g_0 = float(state.g_0)
@@ -88,10 +92,6 @@ def button_design(state):
 
         # Desenho do MMA
         mma.draw(state.img_count)
-
-        # Apresentação dos resultadosx
-        if not os.path.exists("output"):
-            os.makedirs("output")
 
         state.result_image = f'output/mma_draw_{state.img_count}.jpg'
         state.file_logs = 'logs/py_mma.log'

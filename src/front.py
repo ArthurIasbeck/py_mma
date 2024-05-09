@@ -19,6 +19,15 @@ f_y_0 = 500
 f_x_s = 75
 f_y_s = 75
 gamma = 1
+omega_max = 1000
+V = 12
+alpha = 0.5
+eta = 1
+f_c = 0.5
+J_max = 600
+beta_A_c = 0.1
+beta_r_j = 0.1
+beta_r_s = 0.1
 
 design_result = pd.DataFrame(columns=['Variável', 'Descrição', 'Valor'])
 
@@ -27,6 +36,15 @@ small_padding = '2px'
 show_results = False
 result_image = None
 img_count = 0
+file_logs = None
+
+
+def download_image_end(state):
+    notify(state, 'info', f'Download da imagem concluído com sucesso.')
+
+
+def download_log_end(state):
+    notify(state, 'info', f'Download do log concluído com sucesso.')
 
 
 def button_design(state):
@@ -48,9 +66,18 @@ def button_design(state):
         input_f_x_s = float(state.f_x_s)
         input_f_y_s = float(state.f_y_s)
         input_gamma = float(state.gamma)
+        input_omega_max = float(state.omega_max)
+        input_V = float(state.V)
+        input_alpha = float(state.alpha)
+        input_eta = float(state.eta)
+        input_f_c = float(state.f_c)
+        input_J_max = float(state.J_max) * 1e4
+        input_beta_A_c = float(state.beta_A_c)
+        input_beta_r_j = float(state.beta_r_j)
 
         mma = Mma(np.matrix(input_C), input_g_0, input_B_b, input_r_r, input_f_i, input_f_x_0, input_f_y_0, input_f_x_s,
-                  input_f_y_s, input_gamma)
+                  input_f_y_s, input_gamma, input_omega_max, input_V, input_alpha, input_eta, input_f_c, input_J_max,
+                  input_beta_A_c, input_beta_r_j)
 
         # Dimensionamento do MMA
         _, _, _, _, _, _, _, result = mma.design(log_results=True)
@@ -67,6 +94,7 @@ def button_design(state):
             os.makedirs("output")
 
         state.result_image = f'output/mma_draw_{state.img_count}.jpg'
+        state.file_logs = 'logs/py_mma.log'
         state.show_results = True
         state.img_count += 1
 

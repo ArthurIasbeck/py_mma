@@ -1,6 +1,9 @@
+import logging
+
 import numpy as np
 from PIL import Image, ImageDraw
 import pandas as pd
+from resources.log_config import logger
 
 from exceptions.design_exception import DrawWithoutDesignException
 
@@ -14,7 +17,8 @@ def process_kwargs(kwargs, variable_name, default_value):
 
 class Mma:
 
-    def __init__(self, C, g_0, B_b, r_r, f_i, f_x_0, f_y_0, f_x_s, f_y_s, gamma):
+    def __init__(self, C, g_0, B_b, r_r, f_i, f_x_0, f_y_0, f_x_s, f_y_s, gamma, omega_max, V, alpha, eta, f_c, J_max,
+                 beta_A_c, beta_r_j):
         # Parâmetros de projeto definidos pelo usuário
         self.C = C  # Matriz que indica como as correntes fluem nas bobinas (I = CÎ)
         self.g_0 = g_0  # Dimensão do air gap (entreferro)
@@ -26,6 +30,14 @@ class Mma:
         self.f_x_s = f_x_s  # Força variável máxima em x
         self.f_y_s = f_y_s  # Força variável máxima em x
         self.gamma = gamma  # Coeficiente que indica a organização do fluxo magnético no mancal
+        self.omega_max = omega_max  # Rotação máxima do eixo sustentado pelo mancal
+        self.V = V  # Tensão da fonte de alimentação que fornece corrente aos mancais
+        self.alpha = alpha  # Relação entre a densidade de fluxo magnético de bias e de saturação
+        self.eta = eta  # Relação entre a área de disponível para o cobre das bobinas e a área de fato utilizada
+        self.f_c = f_c  # Razão de cobre na bobina
+        self.J_max = J_max  # Densidade de corrente máxima na bobina
+        self.beta_A_c = beta_A_c  # Fator de segurança para a área da bobina
+        self.beta_r_j = beta_r_j  # Fator de segurança para o raio externo do rotor
 
         # Resultados do dimensionamento
         self.A_g = None  # Área do mancal
@@ -35,32 +47,19 @@ class Mma:
         self.l = None  # Largura do mancal
         self.r_c = None  # Raio interno do contraferro
         self.r_s = None  # Raio externo do contraferro
-
-        # Parâmetros de projeto com valores padrão
-        self.alpha = 0.5  # Relação entre a densidade de fluxo magnético de bias e de saturação
-        self.eta = 1  # Relação entre a área de disponível para o cobre das bobinas e a área de fato utilizada
-        self.f_c = 0.5  # Razão de cobre na bobina
-        self.J_max = 6e6  # Densidade de corrente máxima na bobina
-        self.beta_A_c = 0.1  # Fator de segurança para a área da bobina
-        self.beta_r_j = 0.1  # Fator de segurança para o raio externo do rotor
-        self.beta_r_s = 0.1  # Fator de segurança para o raio do mancal
+        self.df_dt_max = None  # Máxima variação temporal da força aplicada pelos mancais
+        self.I_sat = None  # Corrente de saturação
+        self.I_b = None  # Corrente de base
+        self.N = None  # Número de voltas na espira
 
         # Constantes
         self.mu_0 = 4 * np.pi * 1e-7
 
         # Variáveis de controle
         self.design_done = False  # Valida se o design já foi executado
-        self.log_return = None  # Guarda os logs escritos durante o design
-        self.log_results = None  # Indica se os logs devem ser apresentados ou não
-        self.log_level = 'DEBUG'  # Nível de detalhamento dos logs
-
-    def log_data(self, log_level, msg):
-        if self.log_results:
-            if self.log_level == 'DEBUG' or (self.log_level == 'INFO' and log_level == 'INFO'):
-                self.log_return += msg + '\n'
-                print(msg)
 
     def design(self, **kwargs):
+        logger.info('Iniciando processo de dimensionamento...')
         result = []
         self.log_return = ''
 
@@ -68,25 +67,23 @@ class Mma:
         self.log_results = process_kwargs(kwargs, 'log_results', False)
 
         # Apresentação dos parâmetros de entrada
-        self.log_data('INFO', 'Parâmetros de entrada:')
-        self.log_data('INFO', 'C =')
-        self.log_data('INFO', f'{self.C}')
-        self.log_data('INFO', f'g_0 = {self.g_0} m')
-        self.log_data('INFO', f'B_b = {self.B_b} T')
-        self.log_data('INFO', f'r_r = {self.r_r} m')
-        self.log_data('INFO', f'f_i = {self.f_i}')
-        self.log_data('INFO', f'f_x_0 = {self.f_x_0} N')
-        self.log_data('INFO', f'f_y_0 = {self.f_y_0} N')
-        self.log_data('INFO', f'f_x_s = {self.f_x_s} N')
-        self.log_data('INFO', f'f_y_s = {self.f_y_s} N')
-        self.log_data('INFO', f'gamma = {self.gamma}')
-        self.log_data('INFO', f'alpha = {self.alpha}')
-        self.log_data('INFO', f'eta = {self.eta}')
-        self.log_data('INFO', f'f_c = {self.f_c}')
-        self.log_data('INFO', f'J_max = {self.J_max * 1e-4} A/cm²')
-        self.log_data('INFO', f'beta_A_c = {self.beta_A_c}')
-        self.log_data('INFO', f'beta_r_j = {self.beta_r_j}')
-        self.log_data('INFO', f'beta_r_s = {self.beta_r_s}')
+        logger.info('Parâmetros de entrada:')
+        logger.info(f'C = \n{self.C}')
+        logger.info(f'g_0 = {self.g_0} m')
+        logger.info(f'B_b = {self.B_b} T')
+        logger.info(f'r_r = {self.r_r} m')
+        logger.info(f'f_i = {self.f_i}')
+        logger.info(f'f_x_0 = {self.f_x_0} N')
+        logger.info(f'f_y_0 = {self.f_y_0} N')
+        logger.info(f'f_x_s = {self.f_x_s} N')
+        logger.info(f'f_y_s = {self.f_y_s} N')
+        logger.info(f'gamma = {self.gamma}')
+        logger.info(f'alpha = {self.alpha}')
+        logger.info(f'eta = {self.eta}')
+        logger.info(f'f_c = {self.f_c}')
+        logger.info(f'J_max = {self.J_max * 1e-4} A/cm²')
+        logger.info(f'beta_A_c = {self.beta_A_c}')
+        logger.info(f'beta_r_j = {self.beta_r_j}')
 
         # Definição de variáveis
         II_base = None
@@ -95,13 +92,13 @@ class Mma:
 
         # Computação da matriz de corrente de bias
         II_b = (self.B_b * self.g_0 / self.mu_0) * self.C[:, 2]
-        self.log_data('DEBUG', '\nComputação da matriz de corrente de bias:')
-        self.log_data('DEBUG', f'I_b = {np.round(II_b, decimals=5).T.tolist()[0]}:')
+        logger.info('Iniciando computação da matriz de corrente de bias...')
+        logger.info(f'I_b = {np.round(II_b, decimals=5).T.tolist()[0]}:')
 
         # Computação da área do air gap
         self.A_g = (1 / np.cos(np.radians(180 / n_p))) * (self.f_y_0 * self.mu_0 / B_sat ** 2)
-        self.log_data('INFO', '\nComputação da área do air gap:')
-        self.log_data('INFO', f'A_g = {self.A_g:.8f} m² = {self.A_g * 10 ** 4:.4f} cm²')
+        logger.info('Iniciando computação da área do air gap...')
+        logger.info(f'A_g = {self.A_g:.8f} m² = {self.A_g * 10 ** 4:.4f} cm²')
         result.append({'Variável': 'A_g', 'Descrição': 'Área transversal dos polos.',
                        'Valor': f'{self.A_g * 10 ** 4:.4f} cm²'})
 
@@ -114,9 +111,9 @@ class Mma:
         II_x = II_base * self.C[:, 0]
         II_y = II_base * self.C[:, 1]
 
-        self.log_data('DEBUG', '\nComputação das matrizes de corrente de controle:')
-        self.log_data('DEBUG', f'I_x = {np.round(II_x, decimals=5).T.tolist()[0]}:')
-        self.log_data('DEBUG', f'I_y = {np.round(II_y, decimals=5).T.tolist()[0]}:')
+        logger.info('Iniciando computação das matrizes de corrente de controle...')
+        logger.info(f'I_x = {np.round(II_x, decimals=5).T.tolist()[0]}:')
+        logger.info(f'I_y = {np.round(II_y, decimals=5).T.tolist()[0]}:')
 
         # Computação da área de cobre da bobina
         A_c_list = []
@@ -130,64 +127,86 @@ class Mma:
         A_c_mat = np.matrix(A_c_list)
         A_c_mat_min = A_c_mat.max()
         self.A_c = (1 + self.beta_A_c) * A_c_mat_min
-        self.log_data('INFO', '\nComputação da área de cobre da bobina:')
-        self.log_data('DEBUG', f'[A_c] = {np.round(((10 ** 4) * A_c_mat), decimals=5).tolist()[0]} cm²:')
-        self.log_data('DEBUG', f'A_c >= {A_c_mat_min * 10 ** 4:.4f} cm²')
-        self.log_data('INFO', f'A_c = {np.round(((10 ** 4) * self.A_c), decimals=5)} cm²:')
+        logger.info('Iniciando computação da área de cobre da bobina...')
+        logger.info(f'[A_c] = {np.round(((10 ** 4) * A_c_mat), decimals=5).tolist()[0]} cm²:')
+        logger.info(f'A_c >= {A_c_mat_min * 10 ** 4:.4f} cm²')
+        logger.info(f'A_c = {np.round(((10 ** 4) * self.A_c), decimals=5)} cm²:')
         result.append({'Variável': '[A_c]', 'Descrição': 'Área de cobre mínima de cada bobina.',
                        'Valor': f'{str(np.round(((10 ** 4) * A_c_mat), decimals=5).tolist()[0])} cm²'})
         result.append({'Variável': 'A_c', 'Descrição': 'Área de cobre das bobinas',
                        'Valor': f'{np.round(((10 ** 4) * self.A_c), decimals=5)} cm²'})
 
         # Computação da espessura do rotor
-        theta_p = np.pi * self.f_i / n_p  # TODO: Ajustar esse parâmetro está dando erro de numpy.float64
+        theta_p = np.pi * self.f_i / n_p
         r_j_min = (self.r_r + 2 * self.gamma * self.g_0 * np.sin(theta_p)) / (1 - 2 * self.gamma * np.sin(theta_p))
         self.r_j = (1 + self.beta_r_j) * r_j_min
-        self.log_data('INFO', '\nComputação da espessura do rotor:')
-        self.log_data('DEBUG', f'r_j >= {r_j_min:.5f} m = {r_j_min * 100:.4f} cm')
-        self.log_data('INFO', f'r_j = {self.r_j:.5f} m = {self.r_j * 100:.4f} cm')
+        logger.info('Iniciando computação da espessura do rotor...')
+        logger.info(f'r_j >= {r_j_min:.5f} m = {r_j_min * 100:.4f} cm')
+        logger.info(f'r_j = {self.r_j:.5f} m = {self.r_j * 100:.4f} cm')
         result.append({'Variável': 'r_j', 'Descrição': 'Espessura do rotor.', 'Valor': f'{self.r_j * 100:.4f} cm'})
 
         # Computação da largura do polo
         r_p = self.r_j + self.g_0
         self.w = 2 * r_p * np.sin(theta_p)
-        self.log_data('INFO', '\nComputação da largura do polo:')
-        self.log_data('INFO', f'w = {self.w:.5f} m = {self.w * 100:.4f} cm')
+        logger.info('Iniciando computação da largura do polo...')
+        logger.info(f'w = {self.w:.5f} m = {self.w * 100:.4f} cm')
         result.append({'Variável': 'w', 'Descrição': 'Largura do polo.', 'Valor': f'{self.w * 100:.4f} cm'})
 
         # Computação da largura do mancal
         self.l = self.A_g / self.w
-        self.log_data('INFO', '\nComputação da largura do mancal:')
-        self.log_data('INFO', f'l = {self.l:.5f} m = {self.l * 100:.4f} cm')
+        logger.info('Iniciando computação da largura do mancal...')
+        logger.info(f'l = {self.l:.5f} m = {self.l * 100:.4f} cm')
         result.append({'Variável': 'l', 'Descrição': 'Largura do mancal.', 'Valor': f'{self.l * 100:.4f} cm'})
 
         # Computação da área disponível para as bobinas
         A_v = self.eta * self.A_c
         self.r_c = (A_v / (r_p * np.tan(np.pi / n_p) - self.w / 2)) + r_p
-        self.log_data('DEBUG', '\nComputação da área disponível para as bobinas:')
-        self.log_data('DEBUG', f'A_v = {A_v:.6f} m² = {A_v * 10 ** 4:.4f} cm²')
-        self.log_data('DEBUG', f'r_c = {self.r_c:.6f} m = {self.r_c * 100:.4f} cm')
+        logger.info('Iniciando computação da área disponível para as bobinas...')
+        logger.info(f'A_v = {A_v:.6f} m² = {A_v * 10 ** 4:.4f} cm²')
+        logger.info(f'r_c = {self.r_c:.6f} m = {self.r_c * 100:.4f} cm')
         result.append({'Variável': 'A_v', 'Descrição': 'Área disponível para as bobinas.',
                        'Valor': f'{A_v * 10 ** 4:.4f} cm²'})
         result.append({'Variável': 'r_c', 'Descrição': 'Raio interno do contraferro.',
                        'Valor': f'{self.r_c * 100:.4f} cm'})
 
         # Computação do diâmetro do mancal
-        r_s_min = self.r_c + self.gamma * self.w  # TODO: Ajustar o 
-        self.r_s = (1 + self.beta_r_s) * r_s_min
-        self.log_data('INFO', '\nComputação do diâmetro do mancal:')
-        self.log_data('DEBUG', f'r_s >= {r_s_min:.5f} m = {r_s_min * 100:.5f} cm')
-        self.log_data('INFO', f'r_s = {self.r_s:.5f} m = {self.r_s * 100:.5f} cm')
+        self.r_s = self.r_c + self.gamma * self.w
+        logger.info('Iniciando computação do diâmetro do mancal...')
+        logger.info(f'r_s = {self.r_s:.5f} m = {self.r_s * 100:.5f} cm')
         result.append({'Variável': 'r_s', 'Descrição': 'Diâmetro do mancal.', 'Valor': f'{self.r_s * 100:.5f} cm'})
+
+        # Computação das características do bobinado
+        logger.info('Iniciando computação das características do bobinado...')
+        self.df_dt_max = self.f_y_0 * self.omega_max * (2 * np.pi / 60)
+        L_n = (2 * self.mu_0 * self.A_g) / self.g_0
+        K_in = (4 * self.mu_0 * self.A_g * np.cos(np.deg2rad(22.5))) / self.g_0 ** 2
+        self.I_sat = ((L_n * self.df_dt_max) / (self.alpha * self.V * K_in))
+        self.I_b = self.alpha * self.I_sat
+        self.N = np.ceil((B_sat * self.g_0) / (self.mu_0 * self.I_sat))
+        logger.info(f'df_dt_max = {self.df_dt_max:.2f} N/s')
+        logger.info(f'I_sat = {self.I_sat:.2f} A')
+        logger.info(f'I_b = {self.I_b:.2f} A')
+        logger.info(f'N = {self.N}')
+        result.append({'Variável': 'df_dt_max',
+                       'Descrição': 'Máxima variação temporal da força aplicada pelos mancais.',
+                       'Valor': f'{self.df_dt_max:.2f} N/s'})
+        result.append({'Variável': 'I_sat', 'Descrição': 'Corrente de saturação.', 'Valor': f'{self.I_sat:.2f} A'})
+        result.append({'Variável': 'I_b', 'Descrição': 'Corrente de base.', 'Valor': f'{self.I_b:.2f} A'})
+        result.append({'Variável': 'N', 'Descrição': 'Número de voltas nas bobinas do mancal.',
+                       'Valor': f'{self.N:.0f}'})
 
         self.design_done = True
         result_df = pd.DataFrame(result)
+        logger.info('Processo de dimensionamento concluído com sucesso.')
         return self.A_g, self.A_c, self.r_j, self.w, self.l, self.r_c, self.r_s, result_df
 
     def draw(self, img_count, scale=100):
         if not self.design_done:
+            logging.error('O dimensionamento ainda não foi realizado!')
             raise DrawWithoutDesignException('O dimensionamento precisa ser realizado antes que o MMA possa ser '
                                              'desenhado.')
+
+        logger.info('Iniciando construção da representação gráfica do mancal...')
 
         # Dimensões do MMA
         r_j_draw = scale * self.r_j * 100
@@ -357,4 +376,4 @@ class Mma:
         # Armazenamento do resultado produzido
         file_name = f'output/mma_draw_{img_count}.jpg'
         img.save(file_name)
-        print('Desenho concluído.')
+        logger.info('Representação do mancal concluída com sucesso.')

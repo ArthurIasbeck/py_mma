@@ -83,6 +83,54 @@ Fator que dita a espessura do contraferro (e que depende da forma como os campos
 
 <|{gamma}|input|label=gamma|>
 
+Máxima velocidade de rotação do eixo sustentado pelo MMA (em RPM)
+
+<|part||height={small_padding}|>
+
+<|{omega_max}|input|label=omega_max|>
+
+Tensão da fonte de alimentação dos MMAs
+
+<|part||height={small_padding}|>
+
+<|{V}|input|label=V|>
+
+Fator que dita a relação entre a corrente de base e a corrente de saturação
+
+<|part||height={small_padding}|>
+
+<|{alpha}|input|label=alpha|>
+
+Fator que dita quanto do espaço disponível para as bobinas será de fato ocupado por elas
+
+<|part||height={small_padding}|>
+
+<|{eta}|input|label=eta|>
+
+Relação entre a área do polos e a área de cobre das bobinas
+
+<|part||height={small_padding}|>
+
+<|{f_c}|input|label=f_c|>
+
+Densidade de corrente máxima suportada pelo material que compõe as bobinas do mancal (x 10^4)
+
+<|part||height={small_padding}|>
+
+<|{J_max}|input|label=J_max|>
+
+Fator de segurança associado à area de cobre das bobinas
+
+<|part||height={small_padding}|>
+
+<|{beta_A_c}|input|label=beta_A_c|>
+
+Fator de segurança associado ao raio externo do rotor
+
+<|part||height={small_padding}|>
+
+<|{beta_r_j}|input|label=beta_r_j|>
+
 <|part||height={padding}|>
 
 <|Executar dimensionamento|button|on_action=button_design|>
@@ -95,7 +143,11 @@ Fator que dita a espessura do contraferro (e que depende da forma como os campos
 
 <|part||height={padding}|>
 
-<|{design_result}|table|show_all|width[Variável]=2cm|width[Descrição]=7cm|>
+<|{design_result}|table|show_all|width[Variável]=2cm|width[Descrição]=15cm|>
+
+<|{result_image}|file_download|label=Baixar desenho|on_action=download_image_end|name=desenho.jpg|>
+
+<|{file_logs}|file_download|label=Baixar logs|on_action=download_log_end|name=py_mma.log|>
 
 |>
 

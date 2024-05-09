@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 from PIL import Image, ImageDraw
 import pandas as pd
@@ -202,7 +200,7 @@ class Mma:
 
     def draw(self, img_count, scale=100):
         if not self.design_done:
-            logging.error('O dimensionamento ainda não foi realizado!')
+            logger.error('O dimensionamento ainda não foi realizado!')
             raise DrawWithoutDesignException('O dimensionamento precisa ser realizado antes que o MMA possa ser '
                                              'desenhado.')
 

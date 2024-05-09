@@ -1,32 +1,31 @@
-# Dimensionamento de MMAs
+# **AMB Design Tool**
 
-## Instruções para execução
+Welcome to the Active Magnetic Bearing (AMB) Design Tool! This project allows you to design an AMB using Python 3.10.
 
-Esse projeto possibilita o dimensionamento de Mancais Magnéticos Ativos (MMAs). A execução do script `main_gui.py` promove o acesso à interface gráfica do Py MMA. Uma vez que a mesma tenha sido aberta, será possível verificar no canto superior esquerdo os campos para os parâmetros de entrada, que devem ser definidos pelo usuário. Uma vez que os parâmetros tenham sido determinados, basta que o usuário clique no botão `Executar dimensionamento` para que o dimensionamento seja realizado, os resultados sejam apresentados na caixa de texto no canto inferior esquerdo e o desenho do MMA seja apresentado à direita. 
+## **Getting Started**
 
-É possível ainda realizar o dimensionamento do MMA por meio da execução do script `main.py`. Nesse caso não há uma interface gráfica e os parâmetros de projeto devem ser definidos no próprio script. No entanto, uma vez que a execução desse scrip é concluída, o desenho das vistas frontal e lateral do MMA é armazenado no diretório `files/output`. 
+### Installation:
 
-Para que esse projeto seja devidamente executado, recomenda-se a instalação das dependências empregadas utilizando-se o comando abaixo:
+To start, install the required dependencies by running `pip install -r requirements.txt` in your terminal or command prompt.
 
-```bash
-pip install -r requirements.txt
-```
+## **Running the Project**
 
-Em seguida, é necessário instalar o pacote TK Inter, empregado na construção dos desenhos do MMA. Para tanto, utilize o comando abaixo quando tratando-se de sistemas baseados no Ubuntu. 
+1. Run the [main.py](http://main.py/) file: `python main.py`
+2. Access the frontend at [localhost:5000](http://localhost:5000/) to interact with the design tool.
+3. Fill out the project parameters as prompted, and click on the "Executar dimensionamento" button (Portuguese for "Run Design") to generate a drawing of your AMB and view the results.
 
-```bash
-sudo apt-get install python3-tk
-```
+## **Using the Frontend**
 
-As equações que basearam o desenvolvimento desse projeto podem ser verificadas em *E. H. Maslen, “Magnetic Bearing: Class Notes”, University of Virginia, Charlottesville, 2000*.
+The frontend is built using Taipy, which provides an intuitive interface for designing and visualizing your AMB. You can:
 
-## Pacotes empregados
-Esse projeto é baseado no Python 3.10.0 e emprega os pacotes listados no arquivo `requirements.txt`.
+- Enter project parameters such as bearing dimensions, magnetic field strength, and more.
+- Click on "Executar dimensionamento" to generate a drawing of your AMB design.
+- View the results, including a graphical representation.
 
-## Referências
+## **Troubleshooting**
 
-Se o Py MMA foi útil para você de alguma forma, por favor, referencie-o conforme abaixo: 
+If you encounter any issues during installation or runtime, please refer to `arthuriasbeck@ufu.br`.
 
-*A. H. Iasbeck, A. A. C. Junior, e V. S. Junior, “Desenvolvimento de um programa para automatização do processo de dimensionamento de Mancais Magnéticos Ativos”, apresentado em POSMEC - Simpósio Anual de Engenharia Mecânica, Uberlândia, MG, 2023.*
+## **License**
 
-Sinta-se a vontade para entrar em contato via e-mail: *arthuriasbeck@ufu.br*.
+This project is licensed under GPL (GNU General Public License), so any derivative works be distributed under the same GPL terms.

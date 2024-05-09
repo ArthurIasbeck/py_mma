@@ -1,3 +1,5 @@
-.idea
+/output
 __pycache__/
-*.eps
+.idea
+TODO.py
+logs

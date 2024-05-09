@@ -1,10 +1,8 @@
-import time
-
 import numpy as np
-import turtle
-from datetime import datetime
+from PIL import Image, ImageDraw
+import pandas as pd
 
-from src.exceptions.design_exception import DrawWithoutDesignException
+from exceptions.design_exception import DrawWithoutDesignException
 
 
 def process_kwargs(kwargs, variable_name, default_value):
@@ -63,6 +61,7 @@ class Mma:
                 print(msg)
 
     def design(self, **kwargs):
+        result = []
         self.log_return = ''
 
         # Processamento de argumentos
@@ -97,12 +96,14 @@ class Mma:
         # Computação da matriz de corrente de bias
         II_b = (self.B_b * self.g_0 / self.mu_0) * self.C[:, 2]
         self.log_data('DEBUG', '\nComputação da matriz de corrente de bias:')
-        self.log_data('DEBUG', f'I_b = {np.round(II_b, decimals=5).T.tolist()[0]}T:')
+        self.log_data('DEBUG', f'I_b = {np.round(II_b, decimals=5).T.tolist()[0]}:')
 
         # Computação da área do air gap
         self.A_g = (1 / np.cos(np.radians(180 / n_p))) * (self.f_y_0 * self.mu_0 / B_sat ** 2)
         self.log_data('INFO', '\nComputação da área do air gap:')
         self.log_data('INFO', f'A_g = {self.A_g:.8f} m² = {self.A_g * 10 ** 4:.4f} cm²')
+        result.append({'Variável': 'A_g', 'Descrição': 'Área transversal dos polos.',
+                       'Valor': f'{self.A_g * 10 ** 4:.4f} cm²'})
 
         # Computação das matrizes de corrente de controle
         if n_p == 8:
@@ -114,8 +115,8 @@ class Mma:
         II_y = II_base * self.C[:, 1]
 
         self.log_data('DEBUG', '\nComputação das matrizes de corrente de controle:')
-        self.log_data('DEBUG', f'I_x = {np.round(II_x, decimals=5).T.tolist()[0]}T:')
-        self.log_data('DEBUG', f'I_y = {np.round(II_y, decimals=5).T.tolist()[0]}T:')
+        self.log_data('DEBUG', f'I_x = {np.round(II_x, decimals=5).T.tolist()[0]}:')
+        self.log_data('DEBUG', f'I_y = {np.round(II_y, decimals=5).T.tolist()[0]}:')
 
         # Computação da área de cobre da bobina
         A_c_list = []
@@ -133,66 +134,69 @@ class Mma:
         self.log_data('DEBUG', f'[A_c] = {np.round(((10 ** 4) * A_c_mat), decimals=5).tolist()[0]} cm²:')
         self.log_data('DEBUG', f'A_c >= {A_c_mat_min * 10 ** 4:.4f} cm²')
         self.log_data('INFO', f'A_c = {np.round(((10 ** 4) * self.A_c), decimals=5)} cm²:')
+        result.append({'Variável': '[A_c]', 'Descrição': 'Área de cobre mínima de cada bobina.',
+                       'Valor': f'{str(np.round(((10 ** 4) * A_c_mat), decimals=5).tolist()[0])} cm²'})
+        result.append({'Variável': 'A_c', 'Descrição': 'Área de cobre das bobinas',
+                       'Valor': f'{np.round(((10 ** 4) * self.A_c), decimals=5)} cm²'})
 
         # Computação da espessura do rotor
-        theta_p = np.pi * self.f_i / n_p
+        theta_p = np.pi * self.f_i / n_p  # TODO: Ajustar esse parâmetro está dando erro de numpy.float64
         r_j_min = (self.r_r + 2 * self.gamma * self.g_0 * np.sin(theta_p)) / (1 - 2 * self.gamma * np.sin(theta_p))
         self.r_j = (1 + self.beta_r_j) * r_j_min
         self.log_data('INFO', '\nComputação da espessura do rotor:')
         self.log_data('DEBUG', f'r_j >= {r_j_min:.5f} m = {r_j_min * 100:.4f} cm')
         self.log_data('INFO', f'r_j = {self.r_j:.5f} m = {self.r_j * 100:.4f} cm')
+        result.append({'Variável': 'r_j', 'Descrição': 'Espessura do rotor.', 'Valor': f'{self.r_j * 100:.4f} cm'})
 
         # Computação da largura do polo
         r_p = self.r_j + self.g_0
         self.w = 2 * r_p * np.sin(theta_p)
         self.log_data('INFO', '\nComputação da largura do polo:')
         self.log_data('INFO', f'w = {self.w:.5f} m = {self.w * 100:.4f} cm')
+        result.append({'Variável': 'w', 'Descrição': 'Largura do polo.', 'Valor': f'{self.w * 100:.4f} cm'})
 
         # Computação da largura do mancal
         self.l = self.A_g / self.w
         self.log_data('INFO', '\nComputação da largura do mancal:')
         self.log_data('INFO', f'l = {self.l:.5f} m = {self.l * 100:.4f} cm')
+        result.append({'Variável': 'l', 'Descrição': 'Largura do mancal.', 'Valor': f'{self.l * 100:.4f} cm'})
 
         # Computação da área disponível para as bobinas
         A_v = self.eta * self.A_c
         self.r_c = (A_v / (r_p * np.tan(np.pi / n_p) - self.w / 2)) + r_p
         self.log_data('DEBUG', '\nComputação da área disponível para as bobinas:')
         self.log_data('DEBUG', f'A_v = {A_v:.6f} m² = {A_v * 10 ** 4:.4f} cm²')
+        self.log_data('DEBUG', f'r_c = {self.r_c:.6f} m = {self.r_c * 100:.4f} cm')
+        result.append({'Variável': 'A_v', 'Descrição': 'Área disponível para as bobinas.',
+                       'Valor': f'{A_v * 10 ** 4:.4f} cm²'})
+        result.append({'Variável': 'r_c', 'Descrição': 'Raio interno do contraferro.',
+                       'Valor': f'{self.r_c * 100:.4f} cm'})
 
         # Computação do diâmetro do mancal
-        r_s_min = self.r_c + self.gamma * self.w
+        r_s_min = self.r_c + self.gamma * self.w  # TODO: Ajustar o 
         self.r_s = (1 + self.beta_r_s) * r_s_min
         self.log_data('INFO', '\nComputação do diâmetro do mancal:')
         self.log_data('DEBUG', f'r_s >= {r_s_min:.5f} m = {r_s_min * 100:.5f} cm')
         self.log_data('INFO', f'r_s = {self.r_s:.5f} m = {self.r_s * 100:.5f} cm')
+        result.append({'Variável': 'r_s', 'Descrição': 'Diâmetro do mancal.', 'Valor': f'{self.r_s * 100:.5f} cm'})
 
         self.design_done = True
-        return self.A_g, self.A_c, self.r_j, self.w, self.l, self.r_c, self.r_s
+        result_df = pd.DataFrame(result)
+        return self.A_g, self.A_c, self.r_j, self.w, self.l, self.r_c, self.r_s, result_df
 
-    def draw(self, scale=1500, **kwargs):
+    def draw(self, img_count, scale=100):
         if not self.design_done:
             raise DrawWithoutDesignException('O dimensionamento precisa ser realizado antes que o MMA possa ser '
                                              'desenhado.')
 
-        # Processamento de argumentos
-        draw_axis = process_kwargs(kwargs, 'draw_axis', True)
-        save_result = process_kwargs(kwargs, 'save_result', False)
-        screen = process_kwargs(kwargs, 'screen', None)
-        hold_draw = process_kwargs(kwargs, 'hold_draw', False)
-
-        if 'turtle' in kwargs:
-            t = kwargs['turtle']
-        else:
-            t = turtle
-
         # Dimensões do MMA
-        r_j_draw = scale * self.r_j
-        g_0_draw = scale * self.g_0
-        r_c_draw = scale * self.r_c
-        r_s_draw = scale * self.r_s
-        r_r_draw = scale * self.r_r
-        l_draw = scale * self.l
-        w_draw = scale * self.w
+        r_j_draw = scale * self.r_j * 100
+        g_0_draw = scale * self.g_0 * 100
+        r_c_draw = scale * self.r_c * 100
+        r_s_draw = scale * self.r_s * 100
+        r_r_draw = scale * self.r_r * 100
+        l_draw = scale * self.l * 100
+        w_draw = scale * self.w * 100
         r_p_draw = r_j_draw + g_0_draw
 
         # Computação dos ângulos utilizados no desenho
@@ -201,120 +205,156 @@ class Mma:
         theta_c = np.rad2deg(2 * np.arcsin(w_draw / (2 * r_c_draw)))
         theta_cv = (45 - theta_c) / 2
 
-        # Cálculo do deslocamento empregado na centralização do desenho
-        delta_x = np.round(-((2.5 * r_s_draw + l_draw) / 2 - r_s_draw))
+        # Distâncias empregadas na construção do desenho
+        y_window = int(np.round(3 * r_s_draw))  # Dimensão vertical da janela
+        x_window = int(np.round(y_window * (16 / 9)))  # Dimensão horizontal da janela
+        distance_between_views = 0.5 * r_s_draw  # Distância entre as vistas frontal e lateral do MMA
 
-        # Inicialização do objeto Turtle utilizado no desenho
-        t.clear()
-        t.speed(0)
-        t.pensize(3)
-        t.hideturtle()
-        if screen is None:
-            t.tracer(0)
-        else:
-            screen.tracer(0)
-        t.penup()
-        t.goto(0, 0)
-        t.setheading(0)
-        t.pendown()
+        # Top left da caixa que contém o desenho
+        draw_start_x = (x_window - (2 * r_s_draw + distance_between_views + l_draw)) / 2
+        draw_start_y = 0.5 * r_s_draw
+
+        # Definição da janela
+        img = Image.new('RGB', (x_window, y_window), color=(255, 255, 255))
+        d = ImageDraw.Draw(img)
+
+        # Parâmetros empregados na construção do desenho
+        width = int(round(scale / 7.5))  # Espessura da linha
+        fill = (17, 28, 42)  # Cor da linha
 
         # Desenho das bases dos polos
-        t.penup()
-        t.goto(0 + delta_x, -r_p_draw)
-        pos_r_p = []
+        bb_start_x = draw_start_x + (r_s_draw - r_p_draw)
+        bb_start_y = draw_start_y + (r_s_draw - r_p_draw)
+        bb_end_x = bb_start_x + 2 * r_p_draw
+        bb_end_y = bb_start_y + 2 * r_p_draw
+        bounding_box = (bb_start_x, bb_start_y, bb_end_x, bb_end_y)
+        start = theta_pv
+        end = start + theta_p
+        d.arc(bounding_box, start=start, end=end, fill=fill, width=width)
+        for i in range(7):
+            start = end + 2 * theta_pv
+            end = start + theta_p
+            d.arc(bounding_box, start=start, end=end, fill=fill, width=width)
+
+        # Desenho dos raios internos do contraferro
+        bb_start_x = draw_start_x + (r_s_draw - r_c_draw)
+        bb_start_y = draw_start_y + (r_s_draw - r_c_draw)
+        bb_end_x = bb_start_x + 2 * r_c_draw
+        bb_end_y = bb_start_y + 2 * r_c_draw
+        bounding_box = (bb_start_x, bb_start_y, bb_end_x, bb_end_y)
+        start = -theta_cv
+        end = start + 2 * theta_cv
+        d.arc(bounding_box, start=start, end=end, fill=fill, width=width)
+        for i in range(7):
+            start = end + theta_c
+            end = start + 2 * theta_cv
+            d.arc(bounding_box, start=start, end=end, fill=fill, width=width)
+
+        # Desenho do raio externo do mancal
+        bb_start_x = draw_start_x
+        bb_start_y = draw_start_y
+        bb_end_x = bb_start_x + 2 * r_s_draw
+        bb_end_y = bb_start_y + 2 * r_s_draw
+        bounding_box = (bb_start_x, bb_start_y, bb_end_x, bb_end_y)
+        d.arc(bounding_box, start=0, end=360, fill=fill, width=width)
+
+        # Desenho dos polos
+        x_0_list = []  # Lista que contém as coordenadas (x) dos pontos de partida das linhas que compõe os polos
+        y_0_list = []  # Lista que contém as coordenadas (y) dos pontos de partida das linhas que compõe os polos
+        zero_x = draw_start_x + r_s_draw  # Coordenada x do centro do MMA
+        zero_y = draw_start_y + r_s_draw  # Coordenada y do centro do MMA
+        theta = theta_pv  # Inclinação associada a alguma das linhas que compõe os polos
+        x_0_list.append(zero_x + r_p_draw * np.cos(np.deg2rad(theta)))
+        y_0_list.append(zero_y + r_p_draw * np.sin(np.deg2rad(theta)))
         for i in range(8):
-            t.circle(r_p_draw, theta_pv)
-            pos_r_p.append(t.pos())
-            t.pendown()
-            t.circle(r_p_draw, theta_p)
-            t.penup()
-            pos_r_p.append(t.pos())
-            t.circle(r_p_draw, theta_pv)
+            theta += theta_p
+            x_0_list.append(zero_x + r_p_draw * np.cos(np.deg2rad(theta)))
+            y_0_list.append(zero_y + r_p_draw * np.sin(np.deg2rad(theta)))
+            theta += 2 * theta_pv
+            x_0_list.append(zero_x + r_p_draw * np.cos(np.deg2rad(theta)))
+            y_0_list.append(zero_y + r_p_draw * np.sin(np.deg2rad(theta)))
 
-        # Desenho da circunferência interna do contraferro
-        t.penup()
-        t.goto(0 + delta_x, -r_c_draw)
-        t.pendown()
-        pos_r_c = []
+        x_f_list = []  # Lista que contém as coordenadas (x) dos pontos de chegada das linhas que compõe os polos
+        y_f_list = []  # Lista que contém as coordenadas (y) dos pontos de chegada das linhas que compõe os polos
+        theta = theta_cv  # Inclinação associada a alguma das linhas que compõe os polos
+        x_f_list.append(zero_x + r_c_draw * np.cos(np.deg2rad(theta)))
+        y_f_list.append(zero_y + r_c_draw * np.sin(np.deg2rad(theta)))
         for i in range(8):
-            t.circle(r_c_draw, theta_cv)
-            pos_r_c.append(t.pos())
-            t.penup()
-            t.circle(r_c_draw, theta_c)
-            t.pendown()
-            pos_r_c.append(t.pos())
-            t.circle(r_c_draw, theta_cv)
+            theta += theta_c
+            x_f_list.append(zero_x + r_c_draw * np.cos(np.deg2rad(theta)))
+            y_f_list.append(zero_y + r_c_draw * np.sin(np.deg2rad(theta)))
+            theta += 2 * theta_cv
+            x_f_list.append(zero_x + r_c_draw * np.cos(np.deg2rad(theta)))
+            y_f_list.append(zero_y + r_c_draw * np.sin(np.deg2rad(theta)))
 
-        # Desenho das conexões entre as bases dos polos e a circunferência interna do contraferro
-        for i in range(16):
-            t.penup()
-            t.goto(pos_r_p[i])
-            t.pendown()
-            t.goto(pos_r_c[i])
-            t.penup()
+        for i in range(len(x_0_list)):
+            d.line((x_0_list[i], y_0_list[i], x_f_list[i], y_f_list[i]), fill=fill, width=width)
 
-        # Desenho da circunferência externa do contraferro
-        t.penup()
-        t.goto(0 + delta_x, -r_s_draw)
-        t.pendown()
-        t.circle(r_s_draw)
+        # Desenho do raio interno do rotor
+        bb_start_x = draw_start_x + r_s_draw - r_j_draw
+        bb_start_y = draw_start_y + r_s_draw - r_j_draw
+        bb_end_x = bb_start_x + 2 * r_j_draw
+        bb_end_y = bb_start_y + 2 * r_j_draw
+        bounding_box = (bb_start_x, bb_start_y, bb_end_x, bb_end_y)
+        theta = 0  # Variável auxiliar empregada no desenho dos arcos que compõe o desenho do raio interno do rotor
+        step_size = 1  # Comprimento angular de cada um dos arcos que compõe o desenho do raio interno do rotor
+        for i in range(int(np.floor(360 / step_size))):
+            d.arc(bounding_box, start=theta, end=theta + step_size, fill=fill, width=width)
+            theta += 2 * step_size
 
-        # Desenho da circunferência interna do rotor
-        t.penup()
-        t.goto(0 + delta_x, -r_r_draw)
-        t.pendown()
-        t.circle(r_r_draw)
+        # Desenho do raio externo do rotor
+        bb_start_x = draw_start_x + r_s_draw - r_r_draw
+        bb_start_y = draw_start_y + r_s_draw - r_r_draw
+        bb_end_x = bb_start_x + 2 * r_r_draw
+        bb_end_y = bb_start_y + 2 * r_r_draw
+        bounding_box = (bb_start_x, bb_start_y, bb_end_x, bb_end_y)
+        d.arc(bounding_box, start=0, end=360, fill=fill, width=width)
 
-        # Desenho da circunferência externa do rotor (tracejada)
-        t.penup()
-        t.goto(0 + delta_x, -r_j_draw)
-        t.pensize(1)
-        pen_state = False
-        for i in range(72):
-            if not pen_state:
-                t.pendown()
-                pen_state = True
-            else:
-                t.penup()
-                pen_state = False
-            t.circle(r_j_draw, 5)
+        # Desenho da vista lateral
+        d.line((
+            draw_start_x + 2 * r_s_draw + distance_between_views,
+            draw_start_y,
+            draw_start_x + 2 * r_s_draw + distance_between_views + l_draw,
+            draw_start_y),
+            fill=fill, width=width)
 
-        # Desenho da vista lateral do MMA
-        t.pensize(3)
-        t.penup()
-        t.goto(1.5 * r_s_draw + delta_x, -r_s_draw)
-        t.pendown()
-        t.forward(l_draw)
-        t.left(90)
-        t.forward(2 * r_s_draw)
-        t.left(90)
-        t.forward(l_draw)
-        t.left(90)
-        t.forward(2 * r_s_draw)
+        d.line((
+            draw_start_x + 2 * r_s_draw + distance_between_views + l_draw,
+            draw_start_y,
+            draw_start_x + 2 * r_s_draw + distance_between_views + l_draw,
+            draw_start_y + 2 * r_s_draw),
+            fill=fill, width=width)
 
-        # Desenho dos eixos x e y
-        if draw_axis:
-            t.pensize(1)
-            t.penup()
-            t.goto(-2000, 0)
-            t.pendown()
-            t.goto(2000, 0)
-            t.penup()
-            t.goto(0 + delta_x, -2000)
-            t.pendown()
-            t.goto(0 + delta_x, 2000)
+        d.line((
+            draw_start_x + 2 * r_s_draw + distance_between_views + l_draw,
+            draw_start_y + 2 * r_s_draw,
+            draw_start_x + 2 * r_s_draw + distance_between_views,
+            draw_start_y + 2 * r_s_draw),
+            fill=fill, width=width)
 
-        if screen is None:
-            t.update()
-        else:
-            screen.update()
+        d.line((
+            draw_start_x + 2 * r_s_draw + distance_between_views,
+            draw_start_y + 2 * r_s_draw,
+            draw_start_x + 2 * r_s_draw + distance_between_views,
+            draw_start_y),
+            fill=fill, width=width)
 
-        # Armazenamento dos resultados
-        if save_result:
-            date_str = datetime.fromtimestamp(time.time()).strftime("%d-%m-%Y %H:%M:%S")
-            file_name = f'files/output/mma_draw_{date_str}.eps'
-            t.getscreen().getcanvas().postscript(file=file_name)
+        # Desenho dos eixos
+        d.line((
+            0,
+            y_window / 2,
+            x_window,
+            y_window / 2),
+            fill=fill, width=int(round(width / 3)))
 
+        d.line((
+            draw_start_x + r_s_draw,
+            0,
+            draw_start_x + r_s_draw,
+            y_window),
+            fill=fill, width=int(round(width / 3)))
+
+        # Armazenamento do resultado produzido
+        file_name = f'output/mma_draw_{img_count}.jpg'
+        img.save(file_name)
         print('Desenho concluído.')
-        if hold_draw:
-            t.done()

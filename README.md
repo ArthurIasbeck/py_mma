@@ -6,11 +6,17 @@ Welcome to the Active Magnetic Bearing (AMB) Design Tool! This project allows yo
 
 ### Installation:
 
-To start, install the required dependencies by running `pip install -r requirements.txt` in your terminal or command prompt.
+To start, install the required dependencies by running the command bellow in your terminal or command prompt.
+```bash
+pip install -r requirements.txt
+```
 
 ## **Running the Project**
 
-1. Run the [main.py](http://main.py/) file: `python main.py`
+1. Run the [main.py](http://main.py/) file:
+   ```bash
+    python main.py
+    ```
 2. Access the frontend at [localhost:5000](http://localhost:5000/) to interact with the design tool.
 3. Fill out the project parameters as prompted, and click on the "Executar dimensionamento" button (Portuguese for "Run Design") to generate a drawing of your AMB and view the results.
 
